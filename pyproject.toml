@@ -1,0 +1,51 @@
+[project]
+name = "mcp-sprout"
+version = "0.1.0"
+description = "从生成到调试:MCP Server 开发一条龙(脚手架为入口,调试面板为核心)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.12",
+    "rich>=13.7",
+    "jinja2>=3.1",
+    "questionary>=2.0",
+    # M3 调试面板:面板本身就是一个 MCP 客户端(官方 ClientSession 连用户 server)
+    "mcp<2",
+    "fastapi>=0.115",
+    "uvicorn>=0.31",
+    "websockets>=12",  # uvicorn 的 WS 支持:时间线/日志流走 WebSocket,纯 uvicorn 不带
+    "watchdog>=4",  # 面板的文件变更自动重启
+]
+
+[project.scripts]
+mcp-sprout = "mcp_sprout.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_sprout"]
+
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple/"
+default = true
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# 覆盖率门槛:档 B 标准是 >70%,本地/CI 一律 80% 兜底(M4)
+addopts = "--cov=mcp_sprout --cov-report=term-missing --cov-fail-under=80"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

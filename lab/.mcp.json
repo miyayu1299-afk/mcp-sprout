@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "weather": {
+      "command": "F:/MCP项目/mcp-sprout/lab/.venv/Scripts/python.exe",
+      "args": ["F:/MCP项目/mcp-sprout/lab/weather_server.py"]
+    }
+  }
+}

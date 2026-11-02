@@ -1,0 +1,34 @@
+# 由 mcp-sprout 生成 —— 每个配置都有防坑设计(详见 README)
+[project]
+name = "demo-full"
+version = "0.1.0"
+description = "完整变体 demo"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # 锁 1.x:mcp 2.x 把 FastMCP 改名 MCPServer,教程/生态还没跟上
+    "mcp<2",
+]
+
+[project.scripts]
+demo-full = "demo_full.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/demo_full"]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

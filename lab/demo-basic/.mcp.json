@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "demo-basic": {
+      "command": "uv",
+      "args": ["run", "--directory", ".", "demo-basic"]
+    }
+  }
+}

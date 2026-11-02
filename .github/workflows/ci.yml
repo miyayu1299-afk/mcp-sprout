@@ -1,0 +1,21 @@
+# ruff 静态检查 + pytest 单测(覆盖率门槛随 pyproject 的 addopts):每次 push/PR 自动跑
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install deps
+        # 本机 uv 走阿里云镜像([[tool.uv.index]]),GitHub runner 在海外,
+        # CI 里改回官方 PyPI,可靠性和缓存都好一些
+        env:
+          UV_DEFAULT_INDEX: https://pypi.org/simple
+        run: uv sync --all-groups
+      - name: Lint
+        run: uv run ruff check src tests
+      - name: Tests(with coverage gate)
+        run: uv run pytest

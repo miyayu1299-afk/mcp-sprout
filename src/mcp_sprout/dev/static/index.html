@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mcp-sprout 调试面板</title>
+<style>
+  :root {
+    --bg: #0f1419; --panel: #1a2129; --border: #2c3846; --text: #d7e0e8;
+    --dim: #8b98a5; --ok: #4ade80; --warn: #eab308; --err: #f87171; --accent: #60a5fa;
+    --mono: Consolas, "Courier New", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); height: 100vh; display: flex;
+         flex-direction: column; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+           background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  header h1 { font-size: 16px; font-weight: 600; }
+  header .sub { color: var(--dim); font-size: 12px; font-family: var(--mono); }
+  #status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+            padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); }
+  #status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+  #status.ok .dot { background: var(--ok); }
+  #status.err .dot { background: var(--err); }
+  button { background: #243447; color: var(--text); border: 1px solid var(--border);
+           border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 13px; }
+  button:hover { background: #2e4257; }
+  button.primary { background: #1d4ed8; border-color: #2563eb; }
+  button:disabled { opacity: .5; cursor: default; }
+  main { flex: 1; display: flex; min-height: 0; }
+  aside { width: 300px; border-right: 1px solid var(--border); overflow-y: auto;
+          padding: 10px; flex-shrink: 0; }
+  .tool-card { padding: 10px 12px; border-radius: 8px; cursor: pointer;
+               border: 1px solid transparent; margin-bottom: 6px; }
+  .tool-card:hover { background: var(--panel); }
+  .tool-card.active { background: var(--panel); border-color: var(--accent); }
+  .tool-card .name { font-weight: 600; font-family: var(--mono); }
+  .tool-card .desc { color: var(--dim); font-size: 12px; margin-top: 4px;
+                     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  section { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  section h2 { font-family: var(--mono); font-size: 20px; margin-bottom: 6px; }
+  .desc { color: var(--dim); font-size: 13px; margin-bottom: 16px; }
+  .empty, .dim { color: var(--dim); }
+  .arg-form { max-width: 640px; }
+  .field { margin-bottom: 14px; }
+  .field > label, .fieldset > legend { display: block; font-size: 13px; margin-bottom: 5px; color: #b9c5d1; }
+  .req { color: var(--err); }
+  input[type=text], input[type=number], textarea, select { width: 100%; background: var(--panel);
+    color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px;
+    font-size: 13px; font-family: var(--mono); }
+  input[type=checkbox] { width: 16px; height: 16px; }
+  textarea { min-height: 70px; }
+  .hint { color: var(--dim); font-size: 11px; margin-top: 4px; }
+  fieldset { border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; }
+  legend { font-size: 12px !important; padding: 0 4px; }
+  .submit-row { margin-top: 18px; display: flex; align-items: center; gap: 12px; }
+  .badge { display: inline-block; font-size: 12px; padding: 2px 10px; border-radius: 999px; }
+  .badge.ok { background: #14532d; color: var(--ok); border: 1px solid #166534; }
+  .badge.err { background: #450a0a; color: var(--err); border: 1px solid #7f1d1d; }
+  .elapsed { color: var(--dim); font-size: 12px; }
+  #result { margin-top: 20px; max-width: 800px; }
+  #result .block { background: var(--panel); border: 1px solid var(--border);
+                   border-radius: 8px; padding: 12px; margin-top: 12px; }
+  #result pre { white-space: pre-wrap; word-break: break-all; font-family: var(--mono);
+                font-size: 13px; line-height: 1.5; }
+  #result img { max-width: 100%; border-radius: 6px; }
+  .error-box { background: #450a0a; border: 1px solid #7f1d1d; color: #fecaca;
+               border-radius: 8px; padding: 12px; margin-top: 12px; font-family: var(--mono);
+               font-size: 13px; white-space: pre-wrap; }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--dim); font-size: 12px; }
+  #bottom { height: 240px; border-top: 1px solid var(--border); background: var(--panel);
+            display: flex; flex-direction: column; flex-shrink: 0; }
+  .tabs { display: flex; gap: 4px; padding: 6px 10px 0; }
+  .tab { padding: 5px 14px; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 12px;
+         color: var(--dim); border: 1px solid transparent; }
+  .tab.active { color: var(--text); border-color: var(--border); border-bottom-color: var(--bg);
+                background: var(--bg); }
+  .pane { flex: 1; overflow-y: auto; padding: 8px 12px; font-family: var(--mono);
+          font-size: 12px; display: none; }
+  .pane.active { display: block; }
+  .tl-row { padding: 2px 0; border-bottom: 1px dashed #222d38; }
+  .tl-row .ts { color: var(--dim); margin-right: 8px; }
+  .tl-row .arrow { margin-right: 8px; }
+  .tl-row.req .arrow { color: var(--accent); }
+  .tl-row.res .arrow { color: var(--ok); }
+  .tl-row.res.err .arrow { color: var(--err); }
+  .tl-row.info { color: var(--dim); }
+  .tl-row .elapsed { color: var(--dim); float: right; }
+  .log-line { color: #9fb0c0; white-space: pre-wrap; word-break: break-all; padding: 1px 0; }
+  .log-line:hover { background: #202b36; }
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+           background: #243447; border: 1px solid var(--accent); padding: 8px 16px;
+           border-radius: 8px; font-size: 12px; font-family: var(--mono);
+           opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 10;
+           max-width: 80vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>mcp-sprout 调试面板</h1>
+  <span class="sub" id="project"></span>
+  <span id="status"><span class="dot"></span><span id="status-text">连接中…</span></span>
+  <button id="refresh">刷新工具</button>
+  <button id="copy-add">复制接入命令</button>
+</header>
+<div id="toast"></div>
+<main>
+  <aside id="tool-list"><div class="dim">加载中…</div></aside>
+  <section id="detail"><div class="empty">← 左边选一个工具,右边按 inputSchema 自动生成参数表单</div></section>
+</main>
+<div id="bottom">
+  <div class="tabs">
+    <div class="tab active" data-pane="timeline">时间线</div>
+    <div class="tab" data-pane="logs">日志(stderr)</div>
+  </div>
+  <div id="timeline" class="pane active"></div>
+  <div id="logs" class="pane"></div>
+</div>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, (ch) => (
+    {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[ch]
+  ));
+}
+
+/* ---------- 状态与工具列表 ---------- */
+
+let tools = [];
+let lastState = null;
+
+async function loadState() {
+  let state;
+  try {
+    state = await (await fetch("/api/state")).json();
+  } catch {
+    $("status").className = "err";
+    $("status-text").textContent = "面板不可达";
+    return;
+  }
+  lastState = state;
+  $("project").textContent = `${state.project}  ·  ${state.command || ""}`;
+  if (state.running) {
+    $("status").className = "ok";
+    $("status-text").textContent = `server 已连接(${state.tools.length} 个工具)`;
+    tools = state.tools;
+    renderToolList();
+  } else {
+    $("status").className = "err";
+    $("status-text").textContent = "server 启动失败";
+    $("tool-list").innerHTML = "";
+    $("detail").innerHTML = state.error
+      ? `<div class="error-box">${escapeHtml(state.error)}</div>`
+      : '<div class="empty">server 未运行</div>';
+  }
+}
+
+function renderToolList() {
+  const list = $("tool-list");
+  list.innerHTML = "";
+  for (const tool of tools) {
+    const card = document.createElement("div");
+    card.className = "tool-card";
+    card.dataset.name = tool.name;
+    card.innerHTML = `<div class="name">${escapeHtml(tool.name)}</div>`
+      + (tool.description ? `<div class="desc">${escapeHtml(tool.description)}</div>` : "");
+    card.addEventListener("click", () => selectTool(tool));
+    list.appendChild(card);
+  }
+}
+
+/* ---------- 表单自动渲染(inputSchema → HTML) ---------- */
+
+function selectTool(tool) {
+  document.querySelectorAll(".tool-card").forEach((card) => {
+    card.classList.toggle("active", card.dataset.name === tool.name);
+  });
+  const schema = tool.inputSchema || {};
+  const props = Object.keys(schema.properties || {});
+  let html = `<h2>${escapeHtml(tool.name)}</h2>`;
+  if (tool.description) html += `<div class="desc">${escapeHtml(tool.description)}</div>`;
+  if (props.length > 0) {
+    html += `<form id="arg-form" class="arg-form"></form>
+             <div id="result"></div>`;
+  } else {
+    html += `<div class="dim">该工具没有参数。</div>
+             <div class="submit-row"><button id="call-btn" class="primary">调用</button></div>
+             <div id="result"></div>`;
+  }
+  $("detail").innerHTML = html;
+  if (props.length > 0) {
+    const form = $("arg-form");
+    renderFields(form, schema, []);
+    const row = document.createElement("div");
+    row.className = "submit-row";
+    row.innerHTML = '<button id="call-btn" class="primary">调用</button><span class="hint" id="form-hint"></span>';
+    form.appendChild(row);
+  }
+  $("call-btn").addEventListener("click", () => submitCall());
+}
+
+function resolveType(field) {
+  if (field.type) return field.type;
+  for (const opt of field.anyOf || []) {
+    if (opt.type) return opt.type;
+  }
+  return "string";
+}
+
+function renderFields(container, schema, path) {
+  const required = new Set(schema.required || []);
+  for (const [name, field] of Object.entries(schema.properties || {})) {
+    renderField(container, name, field, [...path, name], required.has(name));
+  }
+}
+
+function renderField(container, name, field, path, isRequired) {
+  const type = resolveType(field);
+  const labelText = escapeHtml(name) + (isRequired ? ' <span class="req">*</span>' : "");
+  const hint = field.description ? `<div class="hint">${escapeHtml(field.description)}</div>` : "";
+  const pathJson = JSON.stringify(path);
+
+  if (field.enum) {
+    const options = field.enum
+      .map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`)
+      .join("");
+    container.insertAdjacentHTML("beforeend",
+      `<div class="field"><label>${labelText}</label>`
+      + `<select data-path='${pathJson}' data-ftype="string">${options}</select>${hint}</div>`);
+    return;
+  }
+  if (type === "object") {
+    container.insertAdjacentHTML("beforeend",
+      `<fieldset class="fieldset"><legend>${labelText}</legend><div class="obj-fields" data-path='${pathJson}'></div></fieldset>`);
+    renderFields(container.querySelector(`.obj-fields[data-path='${pathJson}']`), field, path);
+    return;
+  }
+  if (type === "array") {
+    const items = field.items || {};
+    const itemType = resolveType(items);
+    if (itemType === "object") {
+      container.insertAdjacentHTML("beforeend",
+        `<div class="field"><label>${labelText}</label>`
+        + `<textarea data-path='${pathJson}' data-ftype="json" placeholder='[{"key": "value"}, ...]'></textarea>`
+        + `<div class="hint">对象数组:直接填 JSON 数组</div>${hint}</div>`);
+    } else {
+      container.insertAdjacentHTML("beforeend",
+        `<div class="field"><label>${labelText}</label>`
+        + `<input type="text" data-path='${pathJson}' data-ftype="array" data-itemtype="${itemType}" `
+        + `placeholder="逗号分隔,每项是 ${itemType}">${hint}</div>`);
+    }
+    return;
+  }
+  if (type === "boolean") {
+    container.insertAdjacentHTML("beforeend",
+      `<div class="field"><label>${labelText}</label>`
+      + `<input type="checkbox" data-path='${pathJson}' data-ftype="boolean">${hint}</div>`);
+    return;
+  }
+  const inputType = type === "integer" || type === "number" ? "number" : "text";
+  const step = type === "integer" ? "1" : "any";
+  container.insertAdjacentHTML("beforeend",
+    `<div class="field"><label>${labelText}</label>`
+    + `<input type="${inputType}" ${inputType === "number" ? `step="${step}" ` : ""}`
+    + `data-path='${pathJson}' data-ftype="${type}">${hint}</div>`);
+}
+
+/* ---------- 取值与调用 ---------- */
+
+function coerce(value, ftype, itemType) {
+  if (ftype === "integer") return parseInt(value, 10);
+  if (ftype === "number") return parseFloat(value);
+  if (ftype === "boolean") return value === true;
+  if (ftype === "array") {
+    if (value.trim() === "") return [];
+    return value.split(",").map((item) => coerce(item.trim(), itemType));
+  }
+  if (ftype === "json") return JSON.parse(value);
+  return value;
+}
+
+function collectValues(form) {
+  const args = {};
+  for (const el of form.querySelectorAll("[data-path]")) {
+    const path = JSON.parse(el.dataset.path);
+    let raw = el.value;
+    if (el.type === "checkbox") raw = el.checked;
+    if (!el.checked && el.type === "checkbox") continue;
+    if (raw === "" || raw === null) continue;  // 空值不传,让 server 用默认值
+    const value = coerce(raw, el.dataset.ftype, el.dataset.itemtype);
+    let node = args;
+    for (const seg of path.slice(0, -1)) node = node[seg] ??= {};
+    node[path[path.length - 1]] = value;
+  }
+  return args;
+}
+
+async function submitCall() {
+  const form = $("arg-form");
+  let args = {};
+  if (form) {
+    try {
+      args = collectValues(form);
+    } catch (e) {
+      renderError(`参数解析失败:${e.message}`);
+      return;
+    }
+  }
+  const btn = $("call-btn");
+  btn.disabled = true;
+  btn.textContent = "调用中…";
+  $("result").innerHTML = "";
+  try {
+    const res = await fetch("/api/call", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: activeToolName(), arguments: args }),
+    });
+    const data = await res.json();
+    if (!res.ok) renderError(data.detail || `HTTP ${res.status}`);
+    else renderResult(data);
+  } catch (e) {
+    renderError(`请求失败:${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "调用";
+  }
+}
+
+function activeToolName() {
+  const card = document.querySelector(".tool-card.active");
+  return card ? card.dataset.name : "";
+}
+
+function renderResult(data) {
+  const badge = data.isError
+    ? '<span class="badge err">失败 isError</span>'
+    : '<span class="badge ok">成功</span>';
+  let html = `${badge} <span class="elapsed">耗时 ${data.elapsedMs} ms</span>`;
+  for (const item of data.content || []) {
+    if (item.type === "text") {
+      html += `<div class="block"><pre>${escapeHtml(item.text)}</pre></div>`;
+    } else if (item.type === "image") {
+      html += `<div class="block"><img src="data:${item.mimeType};base64,${item.data}" alt="image"></div>`;
+    }
+  }
+  if (data.structuredContent && Object.keys(data.structuredContent).length > 0) {
+    html += `<details><summary>structuredContent</summary><div class="block"><pre>`
+      + escapeHtml(JSON.stringify(data.structuredContent, null, 2)) + `</pre></div></details>`;
+  }
+  html += `<details><summary>完整 JSON-RPC 响应</summary><div class="block"><pre>`
+    + escapeHtml(JSON.stringify(data, null, 2)) + `</pre></div></details>`;
+  $("result").innerHTML = html;
+}
+
+function renderError(message) {
+  $("result").innerHTML = `<div class="error-box">${escapeHtml(message)}</div>`;
+}
+
+/* ---------- 时间线与日志(WebSocket) ---------- */
+
+function shortArgs(args) {
+  const text = JSON.stringify(args);
+  return text.length > 100 ? `${text.slice(0, 100)}…` : text;
+}
+
+function renderEventRow(event) {
+  const row = document.createElement("div");
+  const elapsed = event.elapsed_ms != null
+    ? `<span class="elapsed">${event.elapsed_ms} ms</span>` : "";
+  if (event.kind === "request") {
+    row.className = "tl-row req";
+    row.innerHTML = `<span class="ts">${event.ts}</span><span class="arrow">→</span>`
+      + `tools/call ${escapeHtml(event.name)}(${escapeHtml(shortArgs(event.arguments || {}))})${elapsed}`;
+  } else if (event.kind === "response") {
+    row.className = event.is_error ? "tl-row res err" : "tl-row res";
+    row.innerHTML = `<span class="ts">${event.ts}</span><span class="arrow">←</span>`
+      + `tools/call ${escapeHtml(event.name)}${elapsed}`;
+  } else {
+    row.className = "tl-row info";
+    row.innerHTML = `<span class="ts">${event.ts}</span><span class="arrow">·</span>`
+      + escapeHtml(event.message || "");
+  }
+  return row;
+}
+
+function renderLogLine(log) {
+  const line = document.createElement("div");
+  line.className = "log-line";
+  line.innerHTML = `<span class="ts" style="color:var(--dim);margin-right:8px">${log.ts}</span>${escapeHtml(log.line)}`;
+  return line;
+}
+
+function scrollBottom(id) {
+  const pane = $(id);
+  pane.scrollTop = pane.scrollHeight;
+}
+
+/* 连接 → 历史回放 + 实时追加;断线 2s 后自动重连(为第 3 步 server 自动重启铺路)。
+   返回 keepalive 函数:后端靠 receive_text 检测断开,前端要定时发 ping。 */
+function connectWS(path, renderHistory, renderLive) {
+  let ws;
+  function open() {
+    ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${path}`);
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === "history") renderHistory(msg);
+      else renderLive(msg);
+    };
+    ws.onclose = () => setTimeout(open, 2000);
+  }
+  open();
+  return () => { if (ws && ws.readyState === WebSocket.OPEN) ws.send("ping"); };
+}
+
+const keepaliveEvents = connectWS("/ws/events", (msg) => {
+  const pane = $("timeline");
+  pane.innerHTML = "";
+  for (const event of msg.events) pane.appendChild(renderEventRow(event));
+  scrollBottom("timeline");
+}, (msg) => {
+  $("timeline").appendChild(renderEventRow(msg.event));
+  scrollBottom("timeline");
+  if (msg.event.kind === "restart") loadState();  // 工具列表可能变了,刷新状态
+});
+
+const keepaliveLogs = connectWS("/ws/logs", (msg) => {
+  const pane = $("logs");
+  pane.innerHTML = "";
+  for (const log of msg.logs) pane.appendChild(renderLogLine(log));
+  scrollBottom("logs");
+}, (msg) => {
+  $("logs").appendChild(renderLogLine(msg.log));
+  scrollBottom("logs");
+});
+
+document.querySelectorAll(".tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t === tab));
+    document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("active", p.id === tab.dataset.pane));
+  });
+});
+
+setInterval(() => { keepaliveEvents(); keepaliveLogs(); }, 25000);
+
+function toast(text) {
+  const el = $("toast");
+  el.textContent = text;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 3000);
+}
+
+$("copy-add").addEventListener("click", async () => {
+  if (!lastState || !lastState.add_command) return;
+  try {
+    await navigator.clipboard.writeText(lastState.add_command);
+    toast(`已复制:${lastState.add_command}`);
+  } catch {
+    // 剪贴板不可用:把命令打进时间线,方便手动复制
+    const row = renderEventRow({
+      kind: "info",
+      ts: new Date().toTimeString().slice(0, 8),
+      message: `复制失败,请手动复制:${lastState.add_command}`,
+    });
+    $("timeline").appendChild(row);
+    scrollBottom("timeline");
+  }
+});
+
+$("refresh").addEventListener("click", loadState);
+loadState();
+</script>
+</body>
+</html>
